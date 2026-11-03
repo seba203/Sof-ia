@@ -88,7 +88,7 @@ Sé cercana, comprensiva, paciente y educativa. Tu objetivo es ayudar a aprender
 };
 
 
-// Selección de modelos según la categoría
+// Modelos utilizados en cada categoría
 const MODELS = {
   clinico: 'claude-haiku-5-5',
   apa: 'claude-haiku-5-5',
@@ -146,13 +146,10 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Llamada a la API de Claude
 async function callClaude(apiKey, model, systemPrompt, messages) {
-
   let lastError = 'No se pudo obtener respuesta.';
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-
     try {
-
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
 
@@ -184,14 +181,12 @@ async function callClaude(apiKey, model, systemPrompt, messages) {
         lastError
       );
 
-      // Reintentar únicamente ante errores temporales
       const retryable =
         response.status === 429 || response.status >= 500;
 
       if (!retryable) break;
 
     } catch (err) {
-
       console.error(`Error de red en intento ${attempt}:`, err);
       lastError = 'Error al conectar con la red.';
     }
@@ -211,7 +206,6 @@ async function callClaude(apiKey, model, systemPrompt, messages) {
 
 // Enviar mensaje
 async function sendMessage() {
-
   const text = userInput.value.trim();
   const apiKey = localStorage.getItem('anthropic_api_key');
 
@@ -225,7 +219,6 @@ async function sendMessage() {
 
   const selectedMode = modeSelect.value;
 
-  // Obtener prompt y modelo correspondientes
   const systemPrompt = SYSTEM_PROMPTS[selectedMode];
   const selectedModel = MODELS[selectedMode];
 
@@ -234,7 +227,6 @@ async function sendMessage() {
     return;
   }
 
-  // Evitar envíos simultáneos
   sendBtn.disabled = true;
 
   appendMessage(text, 'user');
@@ -242,7 +234,6 @@ async function sendMessage() {
 
   const loadingDiv = appendMessage('Pensando... ☁️', 'assistant');
 
-  // Preparar historial
   const messages = conversationHistory.map(msg => ({
     role: msg.role,
     content: msg.content
@@ -253,7 +244,6 @@ async function sendMessage() {
     content: text
   });
 
-  // Consultar a Claude con el modelo seleccionado
   const data = await callClaude(
     apiKey,
     selectedModel,
@@ -263,15 +253,11 @@ async function sendMessage() {
 
   sendBtn.disabled = false;
 
-  // Manejo de errores
   if (data.error) {
-
     loadingDiv.innerText = `Error de API: ${data.error.message}`;
-
     return;
   }
 
-  // Extraer respuesta de texto
   const reply = (data.content || [])
     .filter(block => block.type === 'text')
     .map(block => block.text)
@@ -279,19 +265,15 @@ async function sendMessage() {
     .trim();
 
   if (data.stop_reason === 'refusal' || !reply) {
-
     loadingDiv.innerText =
       'La respuesta fue bloqueada o llegó vacía. Intenta reformular tu mensaje.';
-
     return;
   }
 
-  // Mostrar respuesta
   loadingDiv.innerText = reply;
 
   chatBox.scrollTop = chatBox.scrollHeight;
 
-  // Guardar conversación
   conversationHistory.push({
     role: 'user',
     content: text
@@ -306,14 +288,12 @@ async function sendMessage() {
 
 // Agregar mensajes al chat
 function appendMessage(text, role) {
-
   const msgDiv = document.createElement('div');
 
   msgDiv.classList.add('message', role);
   msgDiv.innerText = text;
 
   chatBox.appendChild(msgDiv);
-
   chatBox.scrollTop = chatBox.scrollHeight;
 
   return msgDiv;
@@ -326,11 +306,8 @@ sendBtn.addEventListener('click', sendMessage);
 
 // Enviar con Enter
 userInput.addEventListener('keydown', (e) => {
-
   if (e.key === 'Enter' && !e.shiftKey) {
-
     e.preventDefault();
-
     sendMessage();
   }
 });
@@ -338,9 +315,7 @@ userInput.addEventListener('keydown', (e) => {
 
 // Cambiar categoría
 modeSelect.addEventListener('change', () => {
-
   conversationHistory = [];
-
   chatBox.innerHTML = '';
 
   const selectedText =
@@ -355,3 +330,50 @@ modeSelect.addEventListener('change', () => {
 
 // Inicializar aplicación
 checkApiKey();
+
+
+// =========================
+// TEMA CLARO / OSCURO 🌙☀️
+// =========================
+
+const themeToggle = document.getElementById('theme-toggle');
+
+function updateThemeButton() {
+  if (!themeToggle) return;
+
+  const isDark = document.body.classList.contains('dark-mode');
+
+  themeToggle.textContent = isDark ? '☀️' : '🌙';
+  themeToggle.title = isDark
+    ? 'Activar modo claro'
+    : 'Activar modo oscuro';
+
+  themeToggle.setAttribute(
+    'aria-label',
+    isDark ? 'Activar modo claro' : 'Activar modo oscuro'
+  );
+}
+
+
+// Aplicar el tema guardado al abrir la página
+const savedTheme = localStorage.getItem('sofia-theme');
+
+if (savedTheme === 'dark') {
+  document.body.classList.add('dark-mode');
+}
+
+updateThemeButton();
+
+
+// Alternar tema al pulsar el botón
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+
+    const isDark = document.body.classList.contains('dark-mode');
+
+    localStorage.setItem('sofia-theme', isDark ? 'dark' : 'light');
+
+    updateThemeButton();
+  });
+}
