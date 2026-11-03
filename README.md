@@ -43,9 +43,4 @@ El sistema utiliza tres tablas principales conectadas relacionalmente:
 
 ---
 
-## ⚙️ Configuración del Proyecto
 
-### 1. Clonar o descargar el repositorio
-```bash
-git clone [https://github.com/tu-usuario/sof-ia.git](https://github.com/tu-usuario/sof-ia.git)
-cd sof-ia
