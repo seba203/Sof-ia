@@ -212,3 +212,4 @@ modeSelect.addEventListener('change', () => {
 });
 
 checkApiKey();
+
