@@ -146,37 +146,89 @@ function renderMarkdown(element, text) {
 }
 
 // =========================
-// API KEY (ANTHROPIC)
+// GESTIÓN DE SESIÓN Y LOGIN
 // =========================
 
 function checkApiKey() {
   const savedKey = localStorage.getItem('anthropic_api_key');
+  const savedUserId = localStorage.getItem('sofia_user_id');
 
-  if (!savedKey) {
+  if (!savedKey || !savedUserId) {
     keyModal?.classList.remove('hidden');
   } else {
     keyModal?.classList.add('hidden');
+    currentUserId = savedUserId;
   }
 }
 
-saveKeyBtn?.addEventListener('click', () => {
-  const key = apiKeyInput.value.trim().replace(/[\n\r\s]+/g, '');
+// Evento de Iniciar Sesión con Animación
+saveKeyBtn?.addEventListener('click', async () => {
+  const username = document.getElementById('login-username')?.value.trim();
+  const code = document.getElementById('login-code')?.value.trim();
+  const apiKey = apiKeyInput.value.trim().replace(/[\n\r\s]+/g, '');
+  const errorDiv = document.getElementById('login-error');
 
-  if (!key) {
-    alert('Por favor, ingresa una API Key válida.');
+  if (errorDiv) errorDiv.style.display = 'none';
+
+  if (!username || !code || !apiKey) {
+    if (errorDiv) {
+      errorDiv.textContent = 'Por favor, completa todos los campos.';
+      errorDiv.style.display = 'block';
+    }
     return;
   }
 
-  localStorage.setItem('anthropic_api_key', key);
+  // Validar usuario en Supabase
+  if (supabaseClient) {
+    const { data: profile, error } = await supabaseClient
+      .from('profiles')
+      .select('id, username')
+      .eq('username', username)
+      .eq('access_code', code)
+      .maybeSingle();
 
-  apiKeyInput.value = '';
-  keyModal?.classList.add('hidden');
+    if (error || !profile) {
+      if (errorDiv) {
+        errorDiv.textContent = 'Usuario o código de acceso incorrectos.';
+        errorDiv.style.display = 'block';
+      }
+      return;
+    }
+
+    // Credenciales correctas: guardar sesión local
+    currentUserId = profile.id;
+    localStorage.setItem('sofia_user_id', profile.id);
+    localStorage.setItem('sofia_user_name', profile.username);
+  }
+
+  localStorage.setItem('anthropic_api_key', apiKey);
+
+  // 1. Iniciar animación de desvanecimiento
+  keyModal?.classList.add('fade-out');
+
+  // 2. Esperar 400ms a que termine la animación antes de ocultar y cargar los chats
+  setTimeout(async () => {
+    keyModal?.classList.add('hidden');
+    keyModal?.classList.remove('fade-out');
+
+    if (currentUserId && modeSelect) {
+      await loadOrCreateConversation(modeSelect.value);
+    }
+  }, 400);
 });
 
-settingsBtn?.addEventListener('click', () => {
-  apiKeyInput.value = localStorage.getItem('anthropic_api_key') || '';
-  keyModal?.classList.remove('hidden');
-});
+async function initSupabaseSession() {
+  const savedUserId = localStorage.getItem('sofia_user_id');
+
+  if (savedUserId) {
+    currentUserId = savedUserId;
+    if (modeSelect) {
+      await loadOrCreateConversation(modeSelect.value);
+    }
+  } else {
+    checkApiKey();
+  }
+}
 
 // =========================
 // SUPABASE (SESIÓN Y DATOS)

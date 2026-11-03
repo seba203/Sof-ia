@@ -21,28 +21,32 @@
 
 <body>
 
-  <!-- Modal para API Key -->
-  <div id="key-modal" class="modal">
-    <div class="modal-content">
-
-      <h2>¡Bienvenida! 🎀</h2>
-
-      <p>
-        Ingresa tu clave de Anthropic para comenzar a estudiar:
-      </p>
-
-      <input
-        type="password"
-        id="api-key-input"
-        placeholder="sk-ant-..."
-      >
-
-      <button id="save-key-btn">
-        Guardar Clave ✨
-      </button>
-
+ <!-- MODAL DE INICIO DE SESIÓN Y CREDENCIALES -->
+<div id="key-modal" class="modal-overlay">
+  <div class="modal-content">
+    <h2>Bienvenida/o a Sof-IA 🌸</h2>
+    <p>Ingresa tus datos de acceso asignados y tu API Key de Anthropic para comenzar.</p>
+    
+    <div class="input-group">
+      <label for="login-username">Usuario:</label>
+      <input type="text" id="login-username" placeholder="Ej: maria.perez">
     </div>
+
+    <div class="input-group">
+      <label for="login-code">Código de acceso:</label>
+      <input type="password" id="login-code" placeholder="Tu clave asignada">
+    </div>
+
+    <div class="input-group">
+      <label for="api-key-input">API Key de Anthropic:</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-api...">
+    </div>
+
+    <div id="login-error" class="error-text" style="color: #e74c3c; display: none; margin-bottom: 10px;"></div>
+
+    <button id="save-key-btn">Ingresar al Chat 🚀</button>
   </div>
+</div>
 
 
   <!-- Interfaz de Chat -->

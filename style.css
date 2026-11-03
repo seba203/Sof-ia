@@ -1346,3 +1346,91 @@ body.dark-mode .message.assistant td {
 body.dark-mode .message.assistant th {
   background: rgba(100, 130, 170, 0.25);
 }
+/* ==========================================
+   PANTALLA DE LOGIN (CENTRADA Y BLOQUEANTE)
+   ========================================== */
+
+/* Overlay que cubre el 100% de la pantalla y tapa el fondo */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #f4f6f8; /* Fondo sólido para que no se vea la app */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Asegura que quede por encima de todo */
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Fondo en modo oscuro */
+body.dark-mode .modal-overlay {
+  background-color: #121212;
+}
+
+/* Tarjeta de login centrada */
+.modal-content {
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  max-width: 420px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+body.dark-mode .modal-content {
+  background: #1e1e1e;
+  color: #ffffff;
+}
+
+/* Estilos para las etiquetas y entradas */
+.input-group {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+  border-color: #7c4dff;
+}
+
+/* Ocultar el modal cuando la sesión esté iniciada */
+.modal-overlay.hidden {
+  display: none !important;
+}
+/* Transición suave para el overlay de login */
+.modal-overlay {
+  opacity: 1;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  transform: scale(1);
+}
+
+/* Estado al iniciar sesión (efecto desvanecer y suave zoom) */
+.modal-overlay.fade-out {
+  opacity: 0;
+  transform: scale(1.03);
+  pointer-events: none;
+}
