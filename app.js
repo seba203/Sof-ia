@@ -45,7 +45,7 @@ QUÉ HACER
 CÓMO RESPONDER
 Siempre en este orden:
 1. Versión corregida: texto listo para copiar.
-2. Cambios realizados: explica cada corrección y la regla APA aplicada.
+2. Cambios realizados: explica cada corrección y la regla APA applied.
 3. Observaciones: sugerencias y datos faltantes.
 
 REGLAS IMPORTANTES
@@ -90,20 +90,19 @@ Sé cercana, comprensiva, paciente y educativa.`
 
 // MODELOS
 const MODELS = {
-  clinico: 'claude-haiku-5-5',
-  apa: 'claude-haiku-5-5',
-  general: 'claude-haiku-5-5'
+  clinico: 'claude-3-haiku-20240307',
+  apa: 'claude-3-5-sonnet-20241022',
+  general: 'claude-3-haiku-20240307'
 };
 
 const MAX_TOKENS = 2048;
-const MAX_ATTEMPTS = 3;
 
 // =========================
 // CONFIGURACIÓN DE SUPABASE
 // =========================
 
 const SUPABASE_URL = 'https://ffigaaodrwahtrnbturh.supabase.co';
-const SUPABASE_ANON_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmaWdhYW9kcndhaHRybmJ0dXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MzA4MjQsImV4cCI6MjEwOTMwNjgyNH0.rfeNYPD66vwWy7soK55gct2QDCI0FxFgjahfUPh_5aM';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmaWdhYW9kcndhaHRybmJ0dXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MzA4MjQsImV4cCI6MjEwOTMwNjgyNH0.rfeNYPD66vwWy7soK55gct2QDCI0FxFgjahfUPh_5aM';
 
 const supabaseClient = window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -116,9 +115,7 @@ let currentUserId = null;
 
 // ELEMENTOS HTML
 const keyModal = document.getElementById('key-modal');
-const apiKeyInput = document.getElementById('api-key-input');
 const saveKeyBtn = document.getElementById('save-key-btn');
-const settingsBtn = document.getElementById('settings-btn');
 const sendBtn = document.getElementById('send-btn');
 const userInput = document.getElementById('user-input');
 const chatBox = document.getElementById('chat-box');
@@ -130,15 +127,11 @@ const themeToggle = document.getElementById('theme-toggle');
 // =========================
 
 function renderMarkdown(element, text) {
-  if (
-    typeof marked !== 'undefined' &&
-    typeof DOMPurify !== 'undefined'
-  ) {
+  if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
     const html = marked.parse(text, {
       gfm: true,
       breaks: true
     });
-
     element.innerHTML = DOMPurify.sanitize(html);
   } else {
     element.textContent = text;
@@ -149,11 +142,10 @@ function renderMarkdown(element, text) {
 // GESTIÓN DE SESIÓN Y LOGIN
 // =========================
 
-function checkApiKey() {
-  const savedKey = localStorage.getItem('anthropic_api_key');
+function checkUserSession() {
   const savedUserId = localStorage.getItem('sofia_user_id');
 
-  if (!savedKey || !savedUserId) {
+  if (!savedUserId) {
     keyModal?.classList.remove('hidden');
   } else {
     keyModal?.classList.add('hidden');
@@ -165,14 +157,13 @@ function checkApiKey() {
 saveKeyBtn?.addEventListener('click', async () => {
   const username = document.getElementById('login-username')?.value.trim();
   const code = document.getElementById('login-code')?.value.trim();
-  const apiKey = apiKeyInput.value.trim().replace(/[\n\r\s]+/g, '');
   const errorDiv = document.getElementById('login-error');
 
   if (errorDiv) errorDiv.style.display = 'none';
 
-  if (!username || !code || !apiKey) {
+  if (!username || !code) {
     if (errorDiv) {
-      errorDiv.textContent = 'Por favor, completa todos los campos.';
+      errorDiv.textContent = 'Por favor, completa el usuario y el código de acceso.';
       errorDiv.style.display = 'block';
     }
     return;
@@ -201,12 +192,9 @@ saveKeyBtn?.addEventListener('click', async () => {
     localStorage.setItem('sofia_user_name', profile.username);
   }
 
-  localStorage.setItem('anthropic_api_key', apiKey);
-
-  // 1. Iniciar animación de desvanecimiento
+  // Animación de desvanecimiento
   keyModal?.classList.add('fade-out');
 
-  // 2. Esperar 400ms a que termine la animación antes de ocultar y cargar los chats
   setTimeout(async () => {
     keyModal?.classList.add('hidden');
     keyModal?.classList.remove('fade-out');
@@ -226,40 +214,20 @@ async function initSupabaseSession() {
       await loadOrCreateConversation(modeSelect.value);
     }
   } else {
-    checkApiKey();
+    checkUserSession();
   }
 }
 
+// Evento para Cerrar Sesión
+document.getElementById('logout-btn')?.addEventListener('click', () => {
+  localStorage.removeItem('sofia_user_id');
+  localStorage.removeItem('sofia_user_name');
+  window.location.reload();
+});
+
 // =========================
-// SUPABASE (SESIÓN Y DATOS)
+// BASE DE DATOS (HISTORIAL)
 // =========================
-
-async function initSupabaseSession() {
-  if (!supabaseClient) return;
-
-  try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-
-    if (session?.user) {
-      currentUserId = session.user.id;
-    } else {
-      const { data: profile } = await supabaseClient
-        .from('profiles')
-        .select('id')
-        .eq('role', 'owner')
-        .maybeSingle();
-
-      currentUserId = profile ? profile.id : '11111111-1111-1111-1111-111111111111';
-    }
-  } catch (error) {
-    console.warn('Usando ID de propietario por defecto:', error);
-    currentUserId = '11111111-1111-1111-1111-111111111111';
-  }
-
-  if (currentUserId && modeSelect) {
-    await loadOrCreateConversation(modeSelect.value);
-  }
-}
 
 async function loadOrCreateConversation(mode) {
   if (!supabaseClient || !currentUserId) return;
@@ -321,68 +289,33 @@ async function saveMessageToSupabase(sender, content) {
   ]);
 }
 
-// =========================
-// CONEXIÓN CON CLAUDE
-// =========================
+// ==========================================
+// PETICIÓN A CLAUDE VÍA EDGE FUNCTION SUPABASE
+// ==========================================
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-async function callClaude(apiKey, model, systemPrompt, messages) {
-  let lastError = 'No se pudo obtener respuesta.';
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const response = await fetch(
-        'https://api.anthropic.com/v1/messages',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          },
-          body: JSON.stringify({
-            model,
-            max_tokens: MAX_TOKENS,
-            system: systemPrompt,
-            messages
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        return data;
-      }
-
-      lastError = data.error?.message ||
-        `Error HTTP ${response.status}`;
-
-      console.warn('Error de Claude:', lastError);
-
-      const retryable =
-        response.status === 429 ||
-        response.status >= 500;
-
-      if (!retryable) break;
-
-    } catch (error) {
-      console.error('Error de conexión:', error);
-      lastError = 'No se pudo conectar con Claude. Revisa tu conexión.';
-    }
-
-    if (attempt < MAX_ATTEMPTS) {
-      await sleep(1000 * attempt);
-    }
+async function fetchClaudeResponse(systemPrompt, userMessages, selectedModel) {
+  if (!supabaseClient) {
+    throw new Error('El cliente de Supabase no está configurado correctamente.');
   }
 
-  return {
-    error: {
-      message: lastError
+  const { data, error } = await supabaseClient.functions.invoke('chat', {
+    body: {
+      model: selectedModel,
+      max_tokens: MAX_TOKENS,
+      system: systemPrompt,
+      messages: userMessages
     }
-  };
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Error de comunicación con la Edge Function de Supabase.');
+  }
+
+  if (data?.error) {
+    throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'Error retornado por la API de Anthropic.');
+  }
+
+  return data;
 }
 
 // =========================
@@ -391,13 +324,13 @@ async function callClaude(apiKey, model, systemPrompt, messages) {
 
 async function sendMessage() {
   const text = userInput.value.trim();
-  const apiKey = localStorage.getItem('anthropic_api_key');
 
   if (!text || sendBtn.disabled) return;
 
-  if (!apiKey) {
-    alert('Por favor, ingresa tu API Key de Anthropic primero.');
-    checkApiKey();
+  const savedUserId = localStorage.getItem('sofia_user_id');
+  if (!savedUserId) {
+    alert('Por favor, inicia sesión primero.');
+    checkUserSession();
     return;
   }
 
@@ -418,7 +351,7 @@ async function sendMessage() {
 
   const loadingDiv = appendMessage('Pensando... ☁️', 'assistant');
 
-  const messages = [
+  const messagesPayload = [
     ...conversationHistory,
     {
       role: 'user',
@@ -427,18 +360,11 @@ async function sendMessage() {
   ];
 
   try {
-    const data = await callClaude(
-      apiKey,
-      selectedModel,
+    const data = await fetchClaudeResponse(
       systemPrompt,
-      messages
+      messagesPayload,
+      selectedModel
     );
-
-    if (data.error) {
-      loadingDiv.textContent =
-        `Error de API: ${data.error.message}`;
-      return;
-    }
 
     const reply = (data.content || [])
       .filter(block => block.type === 'text')
@@ -447,8 +373,7 @@ async function sendMessage() {
       .trim();
 
     if (data.stop_reason === 'refusal' || !reply) {
-      loadingDiv.textContent =
-        'La respuesta llegó vacía o fue bloqueada. Intenta reformular tu mensaje.';
+      loadingDiv.textContent = 'La respuesta llegó vacía o fue bloqueada. Intenta reformular tu mensaje.';
       return;
     }
 
@@ -466,9 +391,7 @@ async function sendMessage() {
 
   } catch (error) {
     console.error('Error al enviar mensaje:', error);
-
-    loadingDiv.textContent =
-      'Ocurrió un error inesperado. Intenta nuevamente.';
+    loadingDiv.textContent = `Error: ${error.message || 'Ocurrió un error inesperado. Intenta nuevamente.'}`;
 
   } finally {
     sendBtn.disabled = false;
@@ -515,8 +438,7 @@ userInput.addEventListener('keydown', event => {
 
 // Cambiar categoría
 modeSelect.addEventListener('change', async () => {
-  const selectedText =
-    modeSelect.options[modeSelect.selectedIndex].text;
+  const selectedText = modeSelect.options[modeSelect.selectedIndex].text;
 
   if (supabaseClient && currentUserId) {
     await loadOrCreateConversation(modeSelect.value);
@@ -541,11 +463,7 @@ function updateThemeButton() {
   const isDark = document.body.classList.contains('dark-mode');
 
   themeToggle.textContent = isDark ? '☀️' : '🌙';
-
-  themeToggle.title = isDark
-    ? 'Activar modo claro'
-    : 'Activar modo oscuro';
-
+  themeToggle.title = isDark ? 'Activar modo claro' : 'Activar modo oscuro';
   themeToggle.setAttribute(
     'aria-label',
     isDark ? 'Activar modo claro' : 'Activar modo oscuro'
@@ -564,11 +482,7 @@ themeToggle?.addEventListener('click', () => {
   document.body.classList.toggle('dark-mode');
 
   const isDark = document.body.classList.contains('dark-mode');
-
-  localStorage.setItem(
-    'sofia-theme',
-    isDark ? 'dark' : 'light'
-  );
+  localStorage.setItem('sofia-theme', isDark ? 'dark' : 'light');
 
   updateThemeButton();
 });
@@ -577,14 +491,4 @@ themeToggle?.addEventListener('click', () => {
 // INICIAR APLICACIÓN
 // =========================
 
-checkApiKey();
 initSupabaseSession();
-// Evento para Cerrar Sesión
-document.getElementById('logout-btn')?.addEventListener('click', () => {
-  localStorage.removeItem('sofia_user_id');
-  localStorage.removeItem('sofia_user_name');
-  localStorage.removeItem('anthropic_api_key');
-  
-  // Recargar la página para volver a mostrar la pantalla de login
-  window.location.reload();
-});
