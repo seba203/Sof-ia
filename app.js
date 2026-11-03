@@ -102,7 +102,7 @@ const MAX_ATTEMPTS = 3;
 // CONFIGURACIÓN DE SUPABASE
 // =========================
 
-const SUPABASE_URL = 'https://ffigaaodrwahtrnbturh.supabase.co/rest/v1/';
+const SUPABASE_URL = 'https://ffigaaodrwahtrnbturh.supabase.co';
 const SUPABASE_ANON_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmaWdhYW9kcndhaHRybmJ0dXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MzA4MjQsImV4cCI6MjEwOTMwNjgyNH0.rfeNYPD66vwWy7soK55gct2QDCI0FxFgjahfUPh_5aM';
 
 const supabaseClient = window.supabase
