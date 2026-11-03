@@ -1,3 +1,4 @@
+
 const SYSTEM_PROMPTS = {
   clinico: `Eres un paciente ficticio para que una estudiante de psicología practique entrevistas y evaluación clínica. Tu objetivo es que la práctica sea realista y útil.
 
@@ -50,13 +51,52 @@ REGLAS IMPORTANTES
 - Tono amable y alentador, sin ser condescendiente.
 
 FORMATO
-Escribe en texto plano, sin markdown. Como la pantalla no muestra cursivas, marca lo que va en cursiva entre asteriscos, por ejemplo *Título del libro*, y recuerda en las observaciones que las referencias llevan sangría francesa al pasarlas a Word.`
+Escribe en texto plano, sin markdown. Como la pantalla no muestra cursivas, marca lo que va en cursiva entre asteriscos, por ejemplo *Título del libro*, y recuerda en las observaciones que las referencias llevan sangría francesa al pasarlas a Word.`,
+
+  general: `Eres Sof-IA, una asistente de inteligencia artificial especializada en psicología, educación y bienestar emocional.
+
+TU FUNCIÓN
+- Responder preguntas generales sobre psicología.
+- Explicar conceptos, teorías y corrientes psicológicas de manera sencilla.
+- Ayudar a comprender conceptos del DSM-5 sin realizar diagnósticos.
+- Explicar temas relacionados con emociones, comportamiento, personalidad y relaciones humanas.
+- Ayudar con dudas académicas y conceptos relacionados con la carrera de psicología.
+- Proporcionar orientación psicoeducativa basada en conocimientos científicos.
+- Ayudar a comprender situaciones cotidianas desde una perspectiva psicológica.
+
+CÓMO RESPONDER
+- Utiliza un lenguaje natural, cercano, amable y profesional.
+- Adapta la profundidad de las respuestas a la pregunta.
+- Explica los conceptos complejos con ejemplos cotidianos.
+- Organiza las respuestas para facilitar su comprensión.
+- Si no estás segura de algo, reconócelo y no inventes información.
+- Distingue entre evidencia científica, teorías e hipótesis.
+- Puedes utilizar markdown para organizar las respuestas.
+- No fuerces una estructura académica si la pregunta es sencilla.
+- Responde directamente a lo que pregunta la usuaria.
+
+LÍMITES IMPORTANTES
+- No realices diagnósticos psicológicos o psiquiátricos.
+- No sustituyas la evaluación de un profesional de salud mental.
+- No presentes tus respuestas como terapia psicológica.
+- No fomentes la dependencia emocional hacia la inteligencia artificial.
+- Si detectas una situación de riesgo o una crisis emocional, responde con empatía y recomienda buscar ayuda profesional o servicios de emergencia cuando corresponda.
+- No inventes estudios, autores, estadísticas ni referencias científicas.
+
+TONO
+Sé cercana, comprensiva, paciente y educativa. Tu objetivo es ayudar a aprender, resolver dudas y comprender mejor la psicología.`
 };
 
-// Modelo a usar. Si algún día quieres más calidad, cambia a 'claude-sonnet-5-5'.
-const MODEL = 'claude-haiku-5-5';
+
+// Selección de modelos según la categoría
+const MODELS = {
+  clinico: 'claude-haiku-5-5',
+  apa: 'claude-haiku-5-5',
+  general: 'claude-haiku-5-5'
+};
+
 const MAX_TOKENS = 2048;
-const MAX_ATTEMPTS = 3; // reintentos si la API está saturada
+const MAX_ATTEMPTS = 3;
 
 let conversationHistory = [];
 
@@ -69,8 +109,11 @@ const userInput = document.getElementById('user-input');
 const chatBox = document.getElementById('chat-box');
 const modeSelect = document.getElementById('mode-select');
 
+
+// Comprobar API Key guardada
 function checkApiKey() {
   const savedKey = localStorage.getItem('anthropic_api_key');
+
   if (!savedKey) {
     keyModal.classList.remove('hidden');
   } else {
@@ -78,37 +121,50 @@ function checkApiKey() {
   }
 }
 
+
+// Guardar API Key
 saveKeyBtn.addEventListener('click', () => {
   const key = apiKeyInput.value.trim().replace(/[\n\r\s]+/g, '');
+
   if (key) {
     localStorage.setItem('anthropic_api_key', key);
+    apiKeyInput.value = '';
     keyModal.classList.add('hidden');
   }
 });
 
+
+// Abrir configuración
 settingsBtn.addEventListener('click', () => {
   apiKeyInput.value = localStorage.getItem('anthropic_api_key') || '';
   keyModal.classList.remove('hidden');
 });
 
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Llama a la API de Claude. Reintenta si hay saturación (529), límite (429) o error del servidor (5xx).
-async function callClaude(apiKey, systemPrompt, messages) {
+
+// Llamada a la API de Claude
+async function callClaude(apiKey, model, systemPrompt, messages) {
+
   let lastError = 'No se pudo obtener respuesta.';
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+
     try {
+
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
+
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
           'anthropic-dangerous-direct-browser-access': 'true'
         },
+
         body: JSON.stringify({
-          model: MODEL,
+          model: model,
           max_tokens: MAX_TOKENS,
           system: systemPrompt,
           messages: messages
@@ -117,59 +173,105 @@ async function callClaude(apiKey, systemPrompt, messages) {
 
       const data = await response.json();
 
-      if (response.ok) return data;
+      if (response.ok) {
+        return data;
+      }
 
       lastError = data.error?.message || `Error HTTP ${response.status}`;
-      console.warn(`Intento ${attempt} falló (${response.status}):`, lastError);
 
-      const retryable = response.status === 429 || response.status >= 500;
+      console.warn(
+        `Intento ${attempt} falló (${response.status}):`,
+        lastError
+      );
+
+      // Reintentar únicamente ante errores temporales
+      const retryable =
+        response.status === 429 || response.status >= 500;
+
       if (!retryable) break;
 
     } catch (err) {
+
       console.error(`Error de red en intento ${attempt}:`, err);
       lastError = 'Error al conectar con la red.';
     }
 
-    if (attempt < MAX_ATTEMPTS) await sleep(1000 * attempt);
+    if (attempt < MAX_ATTEMPTS) {
+      await sleep(1000 * attempt);
+    }
   }
 
-  return { error: { message: lastError } };
+  return {
+    error: {
+      message: lastError
+    }
+  };
 }
 
+
+// Enviar mensaje
 async function sendMessage() {
+
   const text = userInput.value.trim();
   const apiKey = localStorage.getItem('anthropic_api_key');
 
   if (!text) return;
+
   if (!apiKey) {
     alert('Por favor ingresa tu API Key de Anthropic primero.');
     checkApiKey();
     return;
   }
 
+  const selectedMode = modeSelect.value;
+
+  // Obtener prompt y modelo correspondientes
+  const systemPrompt = SYSTEM_PROMPTS[selectedMode];
+  const selectedModel = MODELS[selectedMode];
+
+  if (!systemPrompt || !selectedModel) {
+    alert('El modo seleccionado no está configurado correctamente.');
+    return;
+  }
+
+  // Evitar envíos simultáneos
+  sendBtn.disabled = true;
+
   appendMessage(text, 'user');
   userInput.value = '';
 
-  const selectedMode = modeSelect.value;
-  const systemPrompt = SYSTEM_PROMPTS[selectedMode];
-
   const loadingDiv = appendMessage('Pensando... ☁️', 'assistant');
 
-  // Claude usa los roles "user" y "assistant"
+  // Preparar historial
   const messages = conversationHistory.map(msg => ({
     role: msg.role,
     content: msg.content
   }));
-  messages.push({ role: 'user', content: text });
 
-  const data = await callClaude(apiKey, systemPrompt, messages);
+  messages.push({
+    role: 'user',
+    content: text
+  });
 
+  // Consultar a Claude con el modelo seleccionado
+  const data = await callClaude(
+    apiKey,
+    selectedModel,
+    systemPrompt,
+    messages
+  );
+
+  sendBtn.disabled = false;
+
+  // Manejo de errores
   if (data.error) {
+
     loadingDiv.innerText = `Error de API: ${data.error.message}`;
+
     return;
   }
 
-  // La respuesta puede traer varios bloques; juntamos solo los de texto
+  // Extraer respuesta de texto
   const reply = (data.content || [])
     .filter(block => block.type === 'text')
     .map(block => block.text)
@@ -177,39 +279,79 @@ async function sendMessage() {
     .trim();
 
   if (data.stop_reason === 'refusal' || !reply) {
-    loadingDiv.innerText = 'La respuesta fue bloqueada o llegó vacía. Intenta reformular tu mensaje.';
+
+    loadingDiv.innerText =
+      'La respuesta fue bloqueada o llegó vacía. Intenta reformular tu mensaje.';
+
     return;
   }
 
+  // Mostrar respuesta
   loadingDiv.innerText = reply;
+
   chatBox.scrollTop = chatBox.scrollHeight;
 
-  conversationHistory.push({ role: 'user', content: text });
-  conversationHistory.push({ role: 'assistant', content: reply });
+  // Guardar conversación
+  conversationHistory.push({
+    role: 'user',
+    content: text
+  });
+
+  conversationHistory.push({
+    role: 'assistant',
+    content: reply
+  });
 }
 
+
+// Agregar mensajes al chat
 function appendMessage(text, role) {
+
   const msgDiv = document.createElement('div');
+
   msgDiv.classList.add('message', role);
   msgDiv.innerText = text;
+
   chatBox.appendChild(msgDiv);
+
   chatBox.scrollTop = chatBox.scrollHeight;
+
   return msgDiv;
 }
 
+
+// Botón enviar
 sendBtn.addEventListener('click', sendMessage);
+
+
+// Enviar con Enter
 userInput.addEventListener('keydown', (e) => {
+
   if (e.key === 'Enter' && !e.shiftKey) {
+
     e.preventDefault();
+
     sendMessage();
   }
 });
 
+
+// Cambiar categoría
 modeSelect.addEventListener('change', () => {
+
   conversationHistory = [];
+
   chatBox.innerHTML = '';
-  appendMessage(`Modo cambiado a: ${modeSelect.options[modeSelect.selectedIndex].text}. Historial reiniciado. 🎀`, 'assistant');
+
+  const selectedText =
+    modeSelect.options[modeSelect.selectedIndex].text;
+
+  appendMessage(
+    `Modo cambiado a: ${selectedText}. Historial reiniciado. 🎀`,
+    'assistant'
+  );
 });
 
-checkApiKey();
 
+// Inicializar aplicación
+checkApiKey();
