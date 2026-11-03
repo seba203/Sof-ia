@@ -1,3 +1,6 @@
+// =========================
+// CONFIGURACIÓN Y PROMPTS
+// =========================
 
 const SYSTEM_PROMPTS = {
   clinico: `Eres un paciente ficticio para que una estudiante de psicología practique entrevistas y evaluación clínica. Tu objetivo es que la práctica sea realista y útil.
@@ -77,14 +80,13 @@ CÓMO RESPONDER
 LÍMITES IMPORTANTES
 - No realices diagnósticos psicológicos o psiquiátricos.
 - No sustituyas la evaluación de un profesional.
-- No presentes tus respuestas como terapia psicológica.
+- No presents tus respuestas como terapia psicológica.
 - No inventes estudios, autores ni estadísticas.
 - Si detectas una situación de riesgo o crisis emocional, responde con empatía y recomienda buscar ayuda profesional o servicios de emergencia cuando corresponda.
 
 TONO
 Sé cercana, comprensiva, paciente y educativa.`
 };
-
 
 // MODELOS
 const MODELS = {
@@ -96,8 +98,21 @@ const MODELS = {
 const MAX_TOKENS = 2048;
 const MAX_ATTEMPTS = 3;
 
-let conversationHistory = [];
+// =========================
+// CONFIGURACIÓN DE SUPABASE
+// =========================
 
+const SUPABASE_URL = 'https://ffigaaodrwahtrnbturh.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmaWdhYW9kcndhaHRybmJ0dXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MzA4MjQsImV4cCI6MjEwOTMwNjgyNH0.rfeNYPD66vwWy7soK55gct2QDCI0FxFgjahfUPh_5aM';
+
+const supabaseClient = window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+// VARIABLES GLOBALES
+let conversationHistory = [];
+let currentConversationId = null;
+let currentUserId = null;
 
 // ELEMENTOS HTML
 const keyModal = document.getElementById('key-modal');
@@ -109,7 +124,6 @@ const userInput = document.getElementById('user-input');
 const chatBox = document.getElementById('chat-box');
 const modeSelect = document.getElementById('mode-select');
 const themeToggle = document.getElementById('theme-toggle');
-
 
 // =========================
 // MARKDOWN
@@ -131,9 +145,8 @@ function renderMarkdown(element, text) {
   }
 }
 
-
 // =========================
-// API KEY
+// API KEY (ANTHROPIC)
 // =========================
 
 function checkApiKey() {
@@ -146,8 +159,6 @@ function checkApiKey() {
   }
 }
 
-
-// Guardar API Key
 saveKeyBtn?.addEventListener('click', () => {
   const key = apiKeyInput.value.trim().replace(/[\n\r\s]+/g, '');
 
@@ -159,23 +170,110 @@ saveKeyBtn?.addEventListener('click', () => {
   localStorage.setItem('anthropic_api_key', key);
 
   apiKeyInput.value = '';
-  keyModal.classList.add('hidden');
+  keyModal?.classList.add('hidden');
 });
 
-
-// Abrir configuración
 settingsBtn?.addEventListener('click', () => {
   apiKeyInput.value = localStorage.getItem('anthropic_api_key') || '';
   keyModal?.classList.remove('hidden');
 });
 
+// =========================
+// SUPABASE (SESIÓN Y DATOS)
+// =========================
+
+async function initSupabaseSession() {
+  if (!supabaseClient) return;
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (session?.user) {
+      currentUserId = session.user.id;
+    } else {
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .eq('role', 'owner')
+        .maybeSingle();
+
+      currentUserId = profile ? profile.id : '11111111-1111-1111-1111-111111111111';
+    }
+  } catch (error) {
+    console.warn('Usando ID de propietario por defecto:', error);
+    currentUserId = '11111111-1111-1111-1111-111111111111';
+  }
+
+  if (currentUserId && modeSelect) {
+    await loadOrCreateConversation(modeSelect.value);
+  }
+}
+
+async function loadOrCreateConversation(mode) {
+  if (!supabaseClient || !currentUserId) return;
+
+  chatBox.innerHTML = '';
+  conversationHistory = [];
+
+  const { data: existingConv } = await supabaseClient
+    .from('conversations')
+    .select('id')
+    .eq('user_id', currentUserId)
+    .eq('mode', mode)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingConv) {
+    currentConversationId = existingConv.id;
+    await loadMessagesFromSupabase(currentConversationId);
+  } else {
+    const { data: newConv, error } = await supabaseClient
+      .from('conversations')
+      .insert([{ user_id: currentUserId, mode: mode, title: `Chat ${mode}` }])
+      .select()
+      .single();
+
+    if (!error && newConv) {
+      currentConversationId = newConv.id;
+    }
+  }
+}
+
+async function loadMessagesFromSupabase(conversationId) {
+  if (!supabaseClient) return;
+
+  const { data: dbMessages, error } = await supabaseClient
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error || !dbMessages) return;
+
+  dbMessages.forEach(msg => {
+    appendMessage(msg.content, msg.sender);
+    conversationHistory.push({ role: msg.sender, content: msg.content });
+  });
+}
+
+async function saveMessageToSupabase(sender, content) {
+  if (!supabaseClient || !currentConversationId) return;
+
+  await supabaseClient.from('messages').insert([
+    {
+      conversation_id: currentConversationId,
+      sender: sender,
+      content: content
+    }
+  ]);
+}
 
 // =========================
 // CONEXIÓN CON CLAUDE
 // =========================
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
 
 async function callClaude(apiKey, model, systemPrompt, messages) {
   let lastError = 'No se pudo obtener respuesta.';
@@ -235,7 +333,6 @@ async function callClaude(apiKey, model, systemPrompt, messages) {
   };
 }
 
-
 // =========================
 // ENVIAR MENSAJES
 // =========================
@@ -265,6 +362,7 @@ async function sendMessage() {
 
   appendMessage(text, 'user');
   userInput.value = '';
+  await saveMessageToSupabase('user', text);
 
   const loadingDiv = appendMessage('Pensando... ☁️', 'assistant');
 
@@ -302,14 +400,17 @@ async function sendMessage() {
       return;
     }
 
-    // Mostrar respuesta con formato Markdown
-    renderMarkdown(loadingDiv, reply);
+    if (selectedMode === 'clinico') {
+      loadingDiv.textContent = reply;
+    } else {
+      renderMarkdown(loadingDiv, reply);
+    }
 
-    // Guardar conversación
     conversationHistory.push(
       { role: 'user', content: text },
       { role: 'assistant', content: reply }
     );
+    await saveMessageToSupabase('assistant', reply);
 
   } catch (error) {
     console.error('Error al enviar mensaje:', error);
@@ -324,7 +425,6 @@ async function sendMessage() {
   }
 }
 
-
 // =========================
 // AGREGAR MENSAJES AL CHAT
 // =========================
@@ -334,7 +434,9 @@ function appendMessage(text, role) {
 
   msgDiv.classList.add('message', role);
 
-  if (role === 'assistant') {
+  const selectedMode = modeSelect ? modeSelect.value : 'general';
+
+  if (role === 'assistant' && selectedMode !== 'clinico') {
     renderMarkdown(msgDiv, text);
   } else {
     msgDiv.textContent = text;
@@ -346,13 +448,11 @@ function appendMessage(text, role) {
   return msgDiv;
 }
 
-
 // =========================
 // EVENTOS DEL CHAT
 // =========================
 
 sendBtn.addEventListener('click', sendMessage);
-
 
 userInput.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey) {
@@ -361,21 +461,23 @@ userInput.addEventListener('keydown', event => {
   }
 });
 
-
 // Cambiar categoría
-modeSelect.addEventListener('change', () => {
-  conversationHistory = [];
-  chatBox.innerHTML = '';
-
+modeSelect.addEventListener('change', async () => {
   const selectedText =
     modeSelect.options[modeSelect.selectedIndex].text;
 
+  if (supabaseClient && currentUserId) {
+    await loadOrCreateConversation(modeSelect.value);
+  } else {
+    conversationHistory = [];
+    chatBox.innerHTML = '';
+  }
+
   appendMessage(
-    `Modo cambiado a: ${selectedText}. Historial reiniciado. 🎀`,
+    `Modo cambiado a: ${selectedText}. Historial actualizado. 🎀`,
     'assistant'
   );
 });
-
 
 // =========================
 // TEMA CLARO / OSCURO
@@ -398,8 +500,6 @@ function updateThemeButton() {
   );
 }
 
-
-// Recuperar tema guardado
 const savedTheme = localStorage.getItem('sofia-theme');
 
 if (savedTheme === 'dark') {
@@ -408,8 +508,6 @@ if (savedTheme === 'dark') {
 
 updateThemeButton();
 
-
-// Cambiar tema
 themeToggle?.addEventListener('click', () => {
   document.body.classList.toggle('dark-mode');
 
@@ -423,9 +521,9 @@ themeToggle?.addEventListener('click', () => {
   updateThemeButton();
 });
 
-
 // =========================
 // INICIAR APLICACIÓN
 // =========================
 
 checkApiKey();
+initSupabaseSession();
