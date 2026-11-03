@@ -579,3 +579,12 @@ themeToggle?.addEventListener('click', () => {
 
 checkApiKey();
 initSupabaseSession();
+// Evento para Cerrar Sesión
+document.getElementById('logout-btn')?.addEventListener('click', () => {
+  localStorage.removeItem('sofia_user_id');
+  localStorage.removeItem('sofia_user_name');
+  localStorage.removeItem('anthropic_api_key');
+  
+  // Recargar la página para volver a mostrar la pantalla de login
+  window.location.reload();
+});
