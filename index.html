@@ -1,53 +1,123 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Sof-IA ☁️✨</title>
+
+  <!-- Fuentes -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Estilos -->
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+
   <!-- Modal para API Key -->
   <div id="key-modal" class="modal">
     <div class="modal-content">
+
       <h2>¡Bienvenida! 🎀</h2>
-      <p>Ingresa tu clave de Anthropic para comenzar a estudiar:</p>
-      <input type="password" id="api-key-input" placeholder="sk-ant-...">
-      <button id="save-key-btn">Guardar Clave ✨</button>
+
+      <p>
+        Ingresa tu clave de Anthropic para comenzar a estudiar:
+      </p>
+
+      <input
+        type="password"
+        id="api-key-input"
+        placeholder="sk-ant-..."
+      >
+
+      <button id="save-key-btn">
+        Guardar Clave ✨
+      </button>
+
     </div>
   </div>
 
+
   <!-- Interfaz de Chat -->
   <div class="chat-container">
+
+    <!-- Cabecera -->
     <header class="chat-header">
+
       <div class="title-area">
         <h1>Sof-IA-Agent ☁️</h1>
         <span class="subtitle">Asistente de Psicología</span>
       </div>
+
+      <!-- Controles -->
       <div class="controls">
+
         <select id="mode-select">
           <option value="general">💬 Chat General (Haiku)</option>
           <option value="clinico">🎭 Roleplay Clínico (Haiku)</option>
           <option value="apa">📝 Revisión APA 7 (Sonnet)</option>
         </select>
-        <button id="settings-btn" title="Configurar Clave">⚙️</button>
-        <button id="theme-toggle" type="button" title="Cambiar tema">
-  🌙
-</button>
+
+        <button
+          id="settings-btn"
+          type="button"
+          title="Configurar Clave"
+        >
+          ⚙️
+        </button>
+
+        <button
+          id="theme-toggle"
+          type="button"
+          title="Cambiar tema"
+          aria-label="Cambiar tema"
+        >
+          🌙
+        </button>
+
       </div>
+
     </header>
 
+
+    <!-- Área de mensajes -->
     <main id="chat-box" class="chat-box"></main>
 
+
+    <!-- Área de escritura -->
     <footer class="chat-input-area">
-      <textarea id="user-input" placeholder="Escribe tu consulta o pega tu ensayo aquí... 🌸" rows="2"></textarea>
-      <button id="send-btn">Enviar 🎀</button>
+
+      <textarea
+        id="user-input"
+        placeholder="Escribe tu consulta o pega tu ensayo aquí... 🌸"
+        rows="2"
+      ></textarea>
+
+      <button id="send-btn" type="button">
+        Enviar 🎀
+      </button>
+
     </footer>
+
   </div>
 
+
+  <!-- Librerías para interpretar Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+
+  <!-- Protección y limpieza del HTML generado -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"></script>
+
+  <!-- JavaScript principal de Sof-IA -->
   <script src="app.js"></script>
+
 </body>
 </html>
