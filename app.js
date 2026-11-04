@@ -45,7 +45,7 @@ QUÉ HACER
 CÓMO RESPONDER
 Siempre en este orden:
 1. Versión corregida: texto listo para copiar.
-2. Cambios realizados: explica cada corrección y la regla APA applied.
+2. Cambios realizados: explica cada corrección y la regla APA aplicada.
 3. Observaciones: sugerencias y datos faltantes.
 
 REGLAS IMPORTANTES
@@ -80,7 +80,7 @@ CÓMO RESPONDER
 LÍMITES IMPORTANTES
 - No realices diagnósticos psicológicos o psiquiátricos.
 - No sustituyas la evaluación de un profesional.
-- No presents tus respuestas como terapia psicológica.
+- No presentes tus respuestas como terapia psicológica.
 - No inventes estudios, autores ni estadísticas.
 - Si detectas una situación de riesgo o crisis emocional, responde con empatía y recomienda buscar ayuda profesional o servicios de emergencia cuando corresponda.
 
@@ -89,10 +89,12 @@ Sé cercana, comprensiva, paciente y educativa.`
 };
 
 // MODELOS
+// Nota: la Edge Function decide el modelo final (claude-haiku-5-5).
+// Estos valores se envían, pero la función los ignora por seguridad.
 const MODELS = {
-  clinico: 'claude-3-haiku-20240307',
-  apa: 'claude-3-5-sonnet-20241022',
-  general: 'claude-3-haiku-20240307'
+  clinico: 'claude-haiku-5-5',
+  apa: 'claude-haiku-5-5',
+  general: 'claude-haiku-5-5'
 };
 
 const MAX_TOKENS = 2048;
@@ -103,6 +105,9 @@ const MAX_TOKENS = 2048;
 
 const SUPABASE_URL = 'https://ffigaaodrwahtrnbturh.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmaWdhYW9kcndhaHRybmJ0dXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3MzA4MjQsImV4cCI6MjEwOTMwNjgyNH0.rfeNYPD66vwWy7soK55gct2QDCI0FxFgjahfUPh_5aM';
+
+// Nombre (slug) de tu Edge Function: es lo que va después de /functions/v1/
+const EDGE_FUNCTION_NAME = 'smooth-worker';
 
 const supabaseClient = window.supabase
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -298,7 +303,7 @@ async function fetchClaudeResponse(systemPrompt, userMessages, selectedModel) {
     throw new Error('El cliente de Supabase no está configurado correctamente.');
   }
 
-  const { data, error } = await supabaseClient.functions.invoke('chat', {
+  const { data, error } = await supabaseClient.functions.invoke(EDGE_FUNCTION_NAME, {
     body: {
       model: selectedModel,
       max_tokens: MAX_TOKENS,
@@ -308,11 +313,25 @@ async function fetchClaudeResponse(systemPrompt, userMessages, selectedModel) {
   });
 
   if (error) {
-    throw new Error(error.message || 'Error de comunicación con la Edge Function de Supabase.');
+    // Intenta leer el detalle real del error que devolvió la función
+    let detalle = error.message;
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const body = await error.context.json();
+        detalle = body?.error?.message || body?.message || detalle;
+      }
+    } catch (_) {
+      // Si no se puede leer el detalle, usamos el mensaje genérico
+    }
+    throw new Error(detalle || 'Error de comunicación con la Edge Function de Supabase.');
   }
 
   if (data?.error) {
-    throw new Error(typeof data.error === 'string' ? data.error : data.error.message || 'Error retornado por la API de Anthropic.');
+    throw new Error(
+      typeof data.error === 'string'
+        ? data.error
+        : data.error.message || 'Error retornado por la API de Anthropic.'
+    );
   }
 
   return data;
